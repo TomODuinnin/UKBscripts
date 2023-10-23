@@ -1,0 +1,250 @@
+#Filter rare variants on allele frequency
+
+R v3.6.0
+
+install.packages("R.utils")
+
+library(R.utils)
+library(data.table)
+
+data <- fread("UKB_WES_470k.combined_anno.txt.gz") 
+
+freq <- fread("UKB_WES_470k.combined.freq.vep.txt.gz") 
+
+freq2 <- freq[which(as.numeric(freq$AF) <= 0.01),] 
+
+data$Variant_ID <- paste(data$`#CHR`,"_",data$POS,"_",data$REF,"_",data$ALT)
+
+freq2$Variant_ID <- paste(freq2$`#CHR`,"_",freq2$POS,"_",freq2$REF,"_",freq2$ALT) 
+
+data_gnomad_01 <- data[which(data$Variant_ID %in% freq2$Variant_ID),] 
+
+data_gnomad_01$gnomAD_v2_exome_AF_nfe <- as.numeric(data_gnomad_01$gnomAD_v2_exome_AF_nfe)
+
+data_gnomad_01_rare <- subset(data_gnomad_01, is.na(gnomAD_v2_exome_AF_nfe) | gnomAD_v2_exome_AF_nfe <= 0.01) 
+
+data_gnomad_01_rare <- data_gnomad_01_rare[,c(1,2,3,4,6,9,31,39,42,53)]
+
+
+#Subset filtered variants to SFARI gene set 
+
+SFARI <- fread("SFARI-Gene_genes_05-05-2022release_05-16-2022export.csv")
+
+SFARI_list <- SFARI[which(SFARI$`gene-score` <= 1),]
+
+data_gnomad_01_sfari <- data_gnomad_01_rare[which(data_gnomad_01_rare$Gene %in% SFARI_list$`ensembl-id`),] 
+
+data_gnomad_01_sfari_filter <- data_gnomad_01_sfari[which( ! (data_gnomad_01_sfari$Consequence %like% "intron")),] 
+
+data_gnomad_01_sfari_filter <- data_gnomad_01_sfari_filter[which( ! (data_gnomad_01_sfari_filter$Consequence %like% "NMD")),]
+
+data_gnomad_01_sfari_filter <- data_gnomad_01_sfari_filter[which( ! (data_gnomad_01_sfari_filter$Consequence %like% "synonymous")),]
+
+data_gnomad_01_sfari_filter <- data_gnomad_01_sfari_filter[which( ! (data_gnomad_01_sfari_filter$Consequence %like% "downstream_gene_variant")),]
+
+data_gnomad_01_sfari_filter <- data_gnomad_01_sfari_filter[which( ! (data_gnomad_01_sfari_filter$Consequence %like% "upstream_gene_variant")),]
+
+data_gnomad_01_sfari_filter <- data_gnomad_01_sfari_filter[which(data_gnomad_01_sfari_filter$CADD_PHRED >= 20),]
+
+data_gnomad_01_sfari_filter$MPC_score_rep <- NA
+data_gnomad_01_sfari_filter$MPC_score_rep <- as.numeric(data_gnomad_01_sfari_filter$MPC_score_rep)
+for(i in 1:nrow(data_gnomad_01_sfari_filter)){ 
+	s <- data_gnomad_01_sfari_filter[i,]$MPC_score
+	L <- strsplit(s,"&")[[1]]
+	L[which(L =='.')] <- NA
+	L <- as.numeric(L)
+	data_gnomad_01_sfari_filter[i,]$MPC_score_rep <- ifelse(sum(!is.na(L)) >= 1, max(L, na.rm = T), NA ) 
+}
+
+data_gnomad_01_sfari_CADD <- data_gnomad_01_sfari_filter[which(data_gnomad_01_sfari_filter$CADD_PHRED >= 20),]
+nrow(data_gnomad_01_sfari_CADD)
+
+data_gnomad_01_sfari_MPC <- data_gnomad_01_sfari_filter[which(data_gnomad_01_sfari_filter$MPC_score_rep >= 2),]
+nrow(data_gnomad_01_sfari_MPC)
+
+data_gnomad_01_sfari_pathogenic <- data_gnomad_01_sfari_filter[which( ( (! data_gnomad_01_sfari_filter$Consequence %like% "missense") & data_gnomad_01_sfari_filter$CADD_PHRED >= 20) | (data_gnomad_01_sfari_filter$Consequence %like% "missense" & data_gnomad_01_sfari_filter$MPC_score_rep > 2) ),]
+
+write.table(data_gnomad_01_sfari_pathogenic, file= "data_gnomad_01_sfari_pathogenic_relaxed.txt", quote=FALSE, row.names= FALSE, col.names=TRUE)
+
+
+#Subset filtered variants to DDD gene set 
+
+DDD_list_ID <- DDD[which( (DDD$`confidence category` == 'definitive') & (DDD$phenotypes %like% "HP:0001249") ),]
+
+data_gnomad_01_DDD_ID <- data_gnomad_01_rare[which(data_gnomad_01_rare$SYMBOL %in% DDD_list_ID$`gene symbol`),]
+
+data_gnomad_01_DDD_ID_filter <- data_gnomad_01_DDD_ID[which(! data_gnomad_01_DDD_ID$Consequence %like% "intron"),]
+
+data_gnomad_01_DDD_ID_filter <- data_gnomad_01_DDD_ID_filter[which(! data_gnomad_01_DDD_ID_filter$Consequence %like% "NMD"),]
+
+data_gnomad_01_DDD_ID_filter <- data_gnomad_01_DDD_ID_filter[which(! data_gnomad_01_DDD_ID_filter$Consequence %like% "synonymous"),]
+
+data_gnomad_01_DDD_ID_filter <- data_gnomad_01_DDD_ID_filter[which(! data_gnomad_01_DDD_ID_filter$Consequence %like% "upstream_gene_variant"),]
+
+data_gnomad_01_DDD_ID_filter <- data_gnomad_01_DDD_ID_filter[which(! data_gnomad_01_DDD_ID_filter$Consequence %like% "downstream_gene_variant"),]
+
+data_gnomad_01_DDD_filter <- data_gnomad_01_DDD_filter[which(data_gnomad_01_DDD_filter$CADD_PHRED >= 20),]
+
+data_gnomad_01_DDD_ID_filter$MPC_score_rep <- NA
+data_gnomad_01_DDD_ID_filter$MPC_score_rep <- as.numeric(data_gnomad_01_DDD_ID_filter$MPC_score_rep)
+for(i in 1:nrow(data_gnomad_01_DDD_ID_filter)){ 
+	s <- data_gnomad_01_DDD_ID_filter[i,]$MPC_score
+	L <- strsplit(s,"&")[[1]]
+	L[which(L =='.')] <- NA
+	L <- as.numeric(L)
+	data_gnomad_01_DDD_ID_filter[i,]$MPC_score_rep <- ifelse(sum(!is.na(L)) >= 1, max(L, na.rm = T), NA ) 
+}
+
+data_gnomad_01_DDD_ID_CADD <- data_gnomad_01_DDD_ID_filter[which(data_gnomad_01_DDD_ID_filter$CADD_PHRED >= 20),]
+nrow(data_gnomad_01_DDD_ID_CADD)
+
+data_gnomad_01_DDD_ID_MPC <- data_gnomad_01_DDD_ID_filter[which(data_gnomad_01_DDD_ID_filter$MPC_score_rep > 2),]
+nrow(data_gnomad_01_DDD_ID_MPC
+
+data_gnomad_01_DDD_ID_pathogenic <- data_gnomad_01_DDD_ID_filter[which( ( (! data_gnomad_01_DDD_ID_filter$Consequence %like% "missense") & data_gnomad_01_DDD_ID_filter$CADD_PHRED >= 20) | (data_gnomad_01_DDD_ID_filter$MPC_score_rep > 2) ),]
+
+write.table(data_gnomad_01_DDD_ID_pathogenic, file= "data_gnomad_01_DDD_pathogenic_relaxed.txt", quote=FALSE, row.names= FALSE, col.names=TRUE)
+
+
+#Subset filtered variants to LOF gene set 
+
+library(data.table)
+library(dplyr)
+
+lof <- fread("data_brain_expressed_genes_HPA_GTEx.txt", fill = T)
+
+pli <- fread("/home/users/dinneent/gnomad.v2.1.1.lof_metrics.by_gene.txt")
+
+pli2 <- pli[which(pli$pLI >= 0.9 & pli$oe_lof_upper < 0.37),]
+
+colnames(lof)[1] = "Gene_ID"
+
+lof2 <- lof[which(lof$Gene_ID %in% pli2$gene_id),]
+
+data_gnomad_01_lof <- data_gnomad_01_rare[which(data_gnomad_01_rare$Gene %in% lof2$Gene_ID),]
+
+summary(as.factor(data_gnomad_01_lof$Consequence))
+
+data_gnomad_01_lof_filter <- data_gnomad_01_lof[which(! data_gnomad_01_lof$Consequence %like% "intron"),] 
+
+data_gnomad_01_lof_filter <- data_gnomad_01_lof_filter[which(! data_gnomad_01_lof_filter$Consequence %like% "NMD"),]
+
+data_gnomad_01_lof_filter <- data_gnomad_01_lof_filter[which(! data_gnomad_01_lof_filter$Consequence %like% "synonymous"),]
+
+data_gnomad_01_lof_filter <- data_gnomad_01_lof_filter[which(! data_gnomad_01_lof_filter$Consequence %like% "upstream_gene_variant"),] 
+
+data_gnomad_01_lof_filter <- data_gnomad_01_lof_filter[which(! data_gnomad_01_lof_filter$Consequence %like% "downstream_gene_variant"),]
+
+data_gnomad_01_lof_filter1 <- data_gnomad_01_lof_filter[which(data_gnomad_01_lof_filter$CADD_PHRED >= 30),]
+
+data_gnomad_01_lof_filter1$MPC_score_rep <- NA
+data_gnomad_01_lof_filter1$MPC_score_rep <- as.numeric(data_gnomad_01_lof_filter1$MPC_score_rep)
+for(i in 1:nrow(data_gnomad_01_lof_filter1)){ 
+	s <- data_gnomad_01_lof_filter1[i,]$MPC_score
+	L <- strsplit(s,"&")[[1]]
+	L[which(L =='.')] <- NA
+	L <- as.numeric(L)
+	data_gnomad_01_lof_filter1[i,]$MPC_score_rep <- ifelse(sum(!is.na(L)) >= 1, max(L, na.rm = T), NA )
+}
+
+data_gnomad_01_lof_CADD <- data_gnomad_01_lof_filter[which(data_gnomad_01_lof_filter$CADD_PHRED >= 20),]
+nrow(data_gnomad_01_lof_CADD)
+
+data_gnomad_01_lof_MPC <- data_gnomad_01_lof_filter[which(data_gnomad_01_lof_filter$MPC_score_rep > 2),]
+nrow(data_gnomad_01_lof_MPC)
+
+data_gnomad_01_lof_pathogenic <- data_gnomad_01_lof_filter1[which( ((!data_gnomad_01_lof_filter1$Consequence %like% "missense") & data_gnomad_01_lof_filter1$CADD_PHRED >= 30) | (data_gnomad_01_lof_filter1$Consequence %like% "missense" & data_gnomad_01_lof_filter1$MPC_score_rep > 2) ),]
+
+write.table(data_gnomad_01_lof_pathogenic, file= "data_gnomad_01_lof_pathogenic_pli.txt", quote=FALSE, row.names= FALSE, col.names=TRUE)
+
+
+#make bed files 
+
+cut -d' ' -f1,2 data_gnomad_01_sfari_pathogenic_relaxed.txt | awk '{print $1,$2-1,$2}' OFS='\t' - | uniq > sfari_region.bed 
+
+sed '1d' sfari_region.bed | sort -k1,1 -k2,2n - | uniq > sfari_region_no_head_relaxed.sorted.bed
+
+cut -d' ' -f1,2 data_gnomad_01_DDD_pathogenic_relaxed.txt | awk '{print $1,$2-1,$2}' OFS='\t' - | uniq > DDD_region.bed 
+
+sed '1d' DDD_region.bed | sort -k1,1 -k2,2n - | uniq > DDD_region_no_head_relaxed.sorted.bed
+
+cut -d' ' -f1,2 data_gnomad_01_lof_pathogenic_pli.txt | awk '{print $1,$2-1,$2}' OFS='\t' - | uniq > lof_region.bed 
+
+sed '1d' lof_region.bed | sort -k1,1 -k2,2n - | uniq > lof_region_no_head_relaxed.sorted.bed
+
+
+#Subset VCFs using bed files with identified rare variants
+
+parallel -j 12 "tabix -p vcf UKB_WES_470k.chr{}_european.vcf.gz"  ::: {1..22} X Y
+
+for N in {1..22} X Y ; do ./bcftools-1.16/bcftools view -R sfari_region_no_head_relaxed.sorted.bed UKB_WES_470k.chr${N}_european.vcf.gz --threads 5 -O z -o UKB_WES_470k.chr${N}_anno.sfari.vcf.gz; done
+
+for N in {1..22} X Y ; do ./bcftools-1.16/bcftools view -R DDD_region_no_head_relaxed.sorted.bed UKB_WES_470k.chr${N}_european.vcf.gz --threads 5 -O z -o UKB_WES_470k.chr${N}_anno.DDD.vcf.gz; done
+
+for N in {1..22} X Y ; do ./bcftools-1.16/bcftools view -R lof_region_no_head_relaxed.sorted.bed UKB_WES_470k.chr${N}_european.vcf.gz --threads 5 -O z -o UKB_WES_470k.chr${N}_anno.lof.vcf.gz; done
+
+for N in {1..22} X Y ; do rm UKB_WES_470k.chr${N}_anno.lof.vcf.gz; done
+
+for N in {1..22} X Y ; do rm UKB_WES_470k.chr${N}_anno.DDD.vcf.gz; done
+
+for N in {1..22} X Y ; do rm UKB_WES_470k.chr${N}_anno.sfari.vcf.gz; done
+
+tabix UKB_WES_470k.chr${N}_anno.sfari.vcf.gz
+
+tabix UKB_WES_470k.chr${N}_anno.DDD.vcf.gz
+
+tabix UKB_WES_470k.chr${N}_anno.lof.vcf.gz
+
+ls UKB_WES_470k.chr*_anno.sfari.vcf.gz > sfari_merge_list.txt
+
+ls UKB_WES_470k.chr*_anno.DDD.vcf.gz > DDD_merge_list.txt
+
+ls UKB_WES_470k.chr*_anno.lof.vcf.gz > lof_merge_list.txt
+
+./bcftools-1.16/bcftools concat -f sfari_merge_list.txt --threads 4 -O z -o UKB_WES_470k.merged.sfari.vcf.gz
+
+./bcftools-1.16/bcftools concat -f DDD_merge_list.txt --threads 4 -O z -o UKB_WES_470k.merged.DDD.vcf.gz
+
+./bcftools-1.16/bcftools concat -f lof_merge_list.txt --threads 4 -O z -o UKB_WES_470k.merged.lof.vcf.gz
+
+
+#Identify carriers of filtered rare variants 
+
+
+awk '{print $1 "_" $2 "_" $3 "_" $4 }' data_gnomad_01_sfari_pathogenic_relaxed.txt > data_gnomad_01_sfari_pathogenic_IDs.txt
+
+./bcftools-1.16/bcftools annotate -x ID -I +'%CHROM\_%POS\_%REF\_%ALT' UKB_WES_470k.merged.sfari.vcf.gz -Oz > UKB_WES_470k.merged.sfari.ID.vcf.gz
+
+zcat UKB_WES_470k.merged.sfari.ID.vcf.gz | cut -f3 | grep -v "##" | sort | uniq | wc -l #check multi-allelic - 0
+
+./bcftools-1.16/bcftools query -i "ID=@data_gnomad_01_sfari_pathogenic_IDs.txt" -f "%CHROM\t%POS\t%REF\t%ALT\t%ID[\t%GT]\n" UKB_WES_470k.merged.sfari.ID.vcf.gz > UKB_WES_470k.merged.sfari.txt
+
+~/bin/grep -w -f data_gnomad_01_sfari_pathogenic_IDs.txt UKB_WES_470k.merged.sfari.txt > UKB_WES_470k.merged.sfari.clean.txt
+
+echo -e "CHROM\tPOS\tREF\tALT\tID\t$( ./bcftools-1.16/bcftools query -l UKB_WES_470k.merged.sfari.vcf.gz | tr '\n' '\t' | sed -e 's/\t$//g' )" | cat - UKB_WES_470k.merged.sfari.clean.txt > UKB_WES_470k.merged.sfari.final.txt
+
+
+awk '{print $1 "_" $2 "_" $3 "_" $4 }' data_gnomad_01_DDD_pathogenic_relaxed.txt > data_gnomad_01_DDD_pathogenic_IDs.txt
+
+./bcftools-1.16/bcftools annotate -x ID -I +'%CHROM\_%POS\_%REF\_%ALT' UKB_WES_470k.merged.DDD.vcf.gz -Oz > UKB_WES_470k.merged.DDD.ID.vcf.gz
+
+zcat UKB_WES_470k.merged.DDD.ID.vcf.gz | cut -f3 | grep -v "##" | sort | uniq | wc -l #check multi-allelic - 0
+
+./bcftools-1.16/bcftools query -i "ID=@data_gnomad_01_DDD_pathogenic_IDs.txt" -f "%CHROM\t%POS\t%REF\t%ALT\t%ID[\t%GT]\n" UKB_WES_470k.merged.DDD.ID.vcf.gz > UKB_WES_470k.merged.DDD.txt
+
+~/bin/grep -w -f data_gnomad_01_DDD_pathogenic_IDs.txt UKB_WES_470k.merged.DDD.txt > UKB_WES_470k.merged.DDD.clean.txt
+
+echo -e "CHROM\tPOS\tREF\tALT\tID\t$( ./bcftools-1.16/bcftools query -l UKB_WES_470k.merged.DDD.vcf.gz | tr '\n' '\t' | sed -e 's/\t$//g' )" | cat - UKB_WES_470k.merged.DDD.clean.txt > UKB_WES_470k.merged.DDD.final.txt
+
+
+awk '{print $1 "_" $2 "_" $3 "_" $4 }' data_gnomad_01_lof_pathogenic_pli.txt > data_gnomad_01_lof_pathogenic_IDs.txt
+
+./bcftools-1.16/bcftools annotate -x ID -I +'%CHROM\_%POS\_%REF\_%ALT' UKB_WES_470k.merged.lof.vcf.gz -Oz > UKB_WES_470k.merged.lof.ID.vcf.gz
+
+zcat UKB_WES_470k.merged.lof.ID.vcf.gz | cut -f3 | grep -v "##" | sort | uniq | wc -l #check multi-allelic - 0
+
+./bcftools-1.16/bcftools query -i "ID=@data_gnomad_01_lof_pathogenic_IDs.txt" -f "%CHROM\t%POS\t%REF\t%ALT\t%ID[\t%GT]\n" UKB_WES_470k.merged.lof.ID.vcf.gz > UKB_WES_470k.merged.lof.txt
+
+~/bin/grep -w -f data_gnomad_01_lof_pathogenic_IDs.txt UKB_WES_470k.merged.lof.txt > UKB_WES_470k.merged.lof.clean.txt #128
+
+echo -e "CHROM\tPOS\tREF\tALT\tID\t$( ./bcftools-1.16/bcftools query -l UKB_WES_470k.merged.lof.vcf.gz | tr '\n' '\t' | sed -e 's/\t$//g' )" | cat - UKB_WES_470k.merged.lof.clean.txt > UKB_WES_470k.merged.lof.final.txt
