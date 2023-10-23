@@ -1,0 +1,86 @@
+#Tool: PRSice-2 (https://choishingwan.github.io/PRSice/)
+
+#Autism PGS
+
+Rscript prsice2.3.3.R --dir . \
+    --prsice ./PRS_2.3.3linux \
+    --base iPSYCH-PGC_ASD_Nov2017 \
+    --target ukb_imp_merge_v3_1_NDCNV_QC2_FI_final \
+    --a1 A1 \
+    --a2 A2 \
+    --bar-levels 0.001,0.05,0.1,0.2,0.3,0.4,0.5,1 \
+    --chr CHR \
+    --bp BP \
+    --binary-target F \
+    --no-default \
+    --snp SNP \
+    --clump-kb 500 \
+    --clump-p 1.000000 \
+    --clump-r2 0.100000 \
+    --pheno Phenotype_2_correct.txt \
+    --ignore-fid \
+    --cov FI_covariates_correct_2.txt \
+    --cov-col Sex,Age,Batch,Array,Employment_Status,Ed_Attainment,Assessment_Centre,TDI_score,Age,@PC[1-20] \
+    --cov-factor Sex,Batch,Array,Employment_Status,Ed_Attainment,Assessment_Centre \
+    --seed 2144384906 \
+    --out ASD_PGS_all \
+    --stat OR \
+    --pvalue P \
+    --fastscore \
+    --ultra
+
+#Educational Attainment PGS 
+
+Rscript prsice2.3.3.R --dir . \
+    --prsice ./PRS_2.3.3linux \
+    --base Okbay_27225129-EduYears_Main_formatted.txt \
+    --target ukb_imp_merge_v3_1_NDCNV_QC2_FI_final \
+    --a1 A1 \
+    --a2 A2 \
+    --bar-levels 0.001,0.05,0.1,0.2,0.3,0.4,0.5,1 \
+    --chr CHR \
+    --bp POS \
+    --no-default \
+    --snp SNP \
+    --clump-kb 500 \
+    --clump-p 1.000000 \
+    --clump-r2 0.100000 \
+    --pheno Phenotype_2_correct.txt \
+    --ignore-fid \
+    --cov FI_covariates_correct_2.txt \
+    --cov-col Sex,Age,Batch,Array,Employment_Status,Ed_Attainment,Assessment_Centre,TDI_score,Age,@PC[1-20] \
+    --cov-factor Sex,Batch,Array,Employment_Status,Ed_Attainment,Assessment_Centre \
+    --seed 2144384906 \
+    --out FI_Ed_PGS_all \
+    --stat Beta \
+    --pvalue P \
+    --fastscore \
+    --ultra
+
+#Cognition PGS 
+
+Rscript prsice2.3.3.R --dir . \
+    --prsice ./PRS_2.3.3linux \
+    --base Correct2_PRSice_Davies_cog_2018_noUKB_rsid_tabbed_SNPempty.txt \
+    --target ukb_imp_merge_v3_1_NDCNV_QC2_FI_final \
+    --a1 A1 \
+    --a2 A2 \
+    --bar-levels 0.001,0.05,0.1,0.2,0.3,0.4,0.5,1 \
+    --chr CHR \
+    --bp POS \
+    --no-default \
+    --snp SNP \
+    --clump-kb 500 \
+    --clump-p 1.000000 \
+    --clump-r2 0.100000 \
+    --pheno Phenotype_2_correct.txt \
+    --ignore-fid \
+    --cov FI_covariates_correct_2.txt \
+    --cov-col Sex,Age,Batch,Array,Employment_Status,Ed_Attainment,Assessment_Centre,TDI_score,Age,@PC[1-20] \
+    --cov-factor Sex,Batch,Array,Employment_Status,Ed_Attainment,Assessment_Centre \
+    --seed 2144384906 \
+    --out FI_Cog_PGS_all \
+    --stat Beta \
+    --pvalue P \
+    --fastscore \
+    --ultra
