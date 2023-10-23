@@ -1,0 +1,19 @@
+#Pull-Ensembl VEP docker container
+
+docker run --name VEP_docker_109.1 -t -i -v /mnt/project/:/mnt/project/ \
+-v /home/dnanexus:/home/dnanexus/vep/.vep \
+ensemblorg/ensembl-vep:release_107
+
+perl INSTALL.pl -a cfp -s homo_sapiens -y GRCh38 --PLUGINS dbNSFP,CADD
+
+time ./vep --fork 60000 --cache --offline --format vcf --vcf --force_overwrite --no_stats \
+--assembly GRCh38 \
+--buffer_size 1500000 \
+--fasta /opt/vep/.vep/homo_sapiens/107_GRCh38/Homo_sapiens.GRCh38.dna.toplevel.fa.gz \
+--dir_cache /opt/vep/.vep \
+--dir /opt/vep/.vep --symbol --hgvs --numbers --canonical --per_gene --no_check_variants_order \
+--input_file /mnt/project/folder/ukb_v1.merged.varset_FI_subset.vcf.gz \
+--output_file ukb_v1.merged.annotated.vcf \
+--custom /mnt/project/gnomad.exomes.r2.1.1.sites.liftover_grch38.vcf.bgz,gnomAD_v2_exome,vcf,exact,0,AF_nfe \
+--plugin dbNSFP,/mnt/project/dbNSFP4.3a_grch38.gz,Ensembl_transcriptid,Ensembl_geneid,SIFT4G_score,MPC_score,REVEL_score,clinvar_id \
+--plugin CADD,/mnt/project/whole_genome_SNVs.tsv.gz,/mnt/project/gnomad.genomes.r3.0.indel.tsv.gz
