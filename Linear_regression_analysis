@@ -21,3 +21,5 @@ summary(Linear_carrier)
 
 
 #repeat step for deletion, duplication, 15q11.2 del., and 16p13.11 dup. carriers and non-cariers. Also, run step for ND-CNV, deletion and duplication carriers excluding 15q11.2 del. and 16p13.11 dup.
+
+#Repeat same process for DDD, SFARI and LOF genesets using normalised variant counts. 
