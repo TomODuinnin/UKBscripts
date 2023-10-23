@@ -1,0 +1,119 @@
+#!/usr/bin/env/ bash
+
+#date - 23.10.2023
+#author - Thomas Dinneen 
+#Purpose - MHQ cohort quality control master script
+
+#Logging command
+echo -e '\n\n### $(date +"%H:%M:%S %Y/%m/%d") - Starting QC procedure \n\n'
+
+#Command tracker
+
+set -e -o pipefail
+
+
+#Imputation filter 
+
+for N in {1..22} X XY ; do cd 2019.10.13.UK_Bio.QC.${N} ; plink2 --bpfile ukb_imp_chr${N}_v3_1_FI --mach-r2-filter 0.5 2.0 --make-bpgen --out ukb_imp_chr${N}_v3_FI_ImpQuality ; cd ../ ; done &&
+
+
+#Check-sex  
+
+for N in {1..22} X XY ; do cd 2019.10.13.UK_Bio.QC.${N} ; plink2 --bpfile ukb_imp_chr${N}_v3_FI_ImpQuality --remove-nosex --make-bpgen --out ukb_imp_chr${N}_v3_FI_ImpQual_sex ; cd ../ ; done &&
+
+
+#Heterozygosity filter (requires creation of heterozygosity file from UKB sample QC)
+
+for N in {1..22} X XY ; do cd 2019.10.13.UK_Bio.QC.${N}; plink2 --bpfile ukb_imp_chr${N}_v3_FI_ImpQual_sex --keep Original_Het_score_included_IDs.txt --make-bpgen --out ukb_imp_chr${N}_v3_FI_HET_ImpQual_sex ; cd ../ ; done &&
+
+#Soft-filter genotype missingness 
+
+for N in {1..22} X XY ; do cd 2019.10.13.UK_Bio.QC.${N} ; plink2 --bpfile ukb_imp_chr${N}_v3_FI_HET_ImpQual_sex --geno 0.10 --make-bpgen --out ukb_imp_chr${N}_v3_FI_ImpQual_sex_soft; cd ../ ; done  &&
+
+
+#Hard filter for genotype missingness 
+
+for N in {1..22} X XY ; do cd 2019.10.13.UK_Bio.QC.${N} ; plink2 --bpfile ukb_imp_chr${N}_v3_FI_HET_ImpQual_sex_soft --mind 0.10 --make-bpgen --out ukb_imp_chr${N}_v3_FI_HET_ImpQual_sex_soft_mind; cd ../ ; done &&
+
+
+#Remove SNPs of MAF>5% with >5% missing genotype
+
+for N in {1..22} X XY ; do cd 2019.10.13.UK_Bio.QC.${N} ; plink2 --bpfile ukb_imp_chr${N}_v3_FI_HET_ImpQual_sex_soft_mind --mac 10 --make-bpgen --out ukb_imp_chr${N}_v3_FI_HET_ImpQual_sex_soft_MAC10 ; cd ../ ; done &&
+
+for N in {1..22} X XY ; do cd 2019.10.13.UK_Bio.QC.${N} ; plink2 --bpfile ukb_imp_chr${N}_v3_FI_HET_ImpQual_sex_soft_MAC10 --geno 0.05 --make-bpgen --out ukb_imp_chr${N}_v3_FI_HET_ImpQual_sex_soft_MAC10_clean ; cd ../ ; done &&
+
+
+#HWE calculation
+
+
+for N in {1..22} X XY ; do cd 2019.10.13.UK_Bio.QC.${N} ; plink2 --bpfile ukb_imp_chr${N}_v3_FI_HET_ImpQual_sex_soft_MAC10_clean --pheno NDCNVcarrier_status_plushead_FI_head.txt --pheno-name Carrier --hwe 1e-10 --keep-if Carrier == 2 --write-snplist allow-dups --make-bed --out ukb_imp_chr${N}_v3_FI_HET_ImpQual_NDCNV_soft_sex_MAC10_HWE_case_snps ; cd ../ ; done &&
+
+for N in {1..22} X XY ; do cd 2019.10.13.UK_Bio.QC.${N} ; plink2 --bpfile ukb_imp_chr${N}_v3_FI_HET_ImpQual_sex_soft_MAC10_clean --pheno NDCNVcarrier_status_plushead_FI_head.txt --pheno-name Carrier --hwe 1e-06 --keep-if Carrier == 1 --write-snplist allow-dups --make-bed --out ukb_imp_chr${N}_v3_FI_HET_ImpQual_NDCNV_soft_sex_MAC10_HWE_control_snps ; cd ../ ; done &&
+
+for N in {1..22} X XY ; do cd 2019.10.13.UK_Bio.QC.${N} ; plink2 --bpfile ukb_imp_chr${N}_v3_FI_HET_ImpQual_sex_soft_MAC10_clean --extract-intersect ukb_imp_chr${N}_v3_FI_HET_ImpQual_NDCNV_soft_sex_MAC10_HWE_control_snps.snplist ukb_imp_chr${N}_v3_FI_HET_ImpQual_NDCNV_soft_sex_MAC10_HWE_case_snps.snplist --make-bpgen --out ukb_imp_chr${N}_v3_FI_HET_ImpQual_NDCNV_soft_sex_Mac10_HWE_merged ; cd ../ ; done &&
+
+
+#Remove duplicate variant ids 
+
+for N in {1..22} X XY ; do cd 2019.10.13.UK_Bio.QC.${N} ; plink2 --bpfile ukb_imp_chr${N}_v3_FI_HET_ImpQual_NDCNV_soft_sex_Mac10_HWE_merged --rm-dup list exclude-all --make-bpgen --out ukb_imp_chr${N}_v3_MHQ_ImpQual_NDCNV_soft_sex_MAC10_HWE_merged_nodups ; cd ../ ; done &&  
+
+
+#Inferred Ancestry filter 
+
+for N in {1..22} X XY ; do cd 2019.10.13.UK_Bio.QC.${N}; plink2 --bpfile ukb_imp_chr${N}_v3_MHQ_ImpQual_NDCNV_soft_sex_MAC10_HWE_merged_nodups --keep British_Irish_Doubled_IDs.txt --make-bpgen --out ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI ; cd ../ ; done &&  
+
+
+#Remove related IDs 
+for N in {1..22} X XY ; do cd 2019.10.13.UK_Bio.QC.${N}; plink2 --bpfile ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI --remove Doubled_Non_Related_IDs.txt --make-bpgen --out ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI_rel ; cd ../ ; done
+
+#SNP genotype missingness soft filter 
+for N in {1..22} X XY ; do cd 2019.10.13.UK_Bio.QC.${N} ; plink2 --bpfile ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI_rel --geno 0.10 --make-bpgen --out ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI_rel_ImpQuality_sex_soft ; cd ../ ; done &&  
+
+
+#SNP genotype missingness hard filter
+for N in {1..22} X XY ; do cd 2019.10.13.UK_Bio.QC.${N} ; plink2 --bpfile ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI_rel_ImpQuality_sex_soft --mind 0.10 --make-bpgen --out ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI_rel_ImpQuality_sex_soft_mind; cd ../ ; done &&  
+
+
+#Remove SNPs of MAF>5% with >5% missing genotype
+
+for N in {1..22} X XY ; do cd 2019.10.13.UK_Bio.QC.${N} ; plink2 --bpfile ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI_rel_ImpQuality_sex_soft_mind --mac 10 --make-bpgen --out ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI_rel_ImpQuality_sex_soft_MAC10 ; cd ../ ; done &&
+
+for N in {1..22} X XY ; do cd 2019.10.13.UK_Bio.QC.${N} ; plink2 --bpfile ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI_rel_ImpQuality_sex_soft_MAC10 --geno 0.05 --make-bpgen --out ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI_rel_ImpQuality_sex_soft_MAC10_clean ; cd ../ ; done &&  
+
+
+#HWE calculation
+
+for N in {1..22} X XY ; do cd 2019.10.13.UK_Bio.QC.${N} ; /plink2 --bpfile ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI_rel_ImpQuality_sex_soft_MAC10_clean --pheno NDCNVcarrier_status_plushead_FI_head.txt --pheno-name Carrier --hwe 1e-10 --keep-if Carrier == 2 --write-snplist allow-dups --make-bed --out ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI_rel_ImpQuality_sex_soft_MAC10_HWE_case_snps ; cd ../ ; done &&
+
+for N in {1..22} X XY ; do cd 2019.10.13.UK_Bio.QC.${N} ; plink2 --bpfile ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI_rel_ImpQuality_sex_soft_MAC10_clean --pheno NDCNVcarrier_status_plushead_FI_head.txt --pheno-name Carrier --hwe 1e-06 --keep-if Carrier == 1 --write-snplist allow-dups --make-bed --out ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI_rel_ImpQuality_sex_soft_MAC10_HWE_control_snps ; cd ../ ; done &&
+
+for N in {1..22} X XY ; do cd 2019.10.13.UK_Bio.QC.${N} ; plink2 --bpfile ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI_rel_ImpQuality_sex_soft_MAC10_clean --extract-intersect ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI_ImpQuality_sex_soft_MAC10_HWE_control_snps.snplist ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI_ImpQuality_sex_soft_MAC10_HWE_case_snps.snplist --make-bpgen --out ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI_rel_ImpQuality_sex_soft_MAC10_HWE_merged ; cd ../ ; done &&
+
+
+#remove duplicate variant ids 
+
+for N in {1..22} X XY ; do cd 2019.10.13.UK_Bio.QC.${N} ; plink2 --bpfile ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI_rel_ImpQuality_sex_soft_MAC10_HWE_merged --rm-dup list exclude-all --make-bpgen --out ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI_rel_ImpQuality_sex_soft_MAC10_HWE_merged_nodups ; cd ../ ; done &&  
+
+
+#Make .bed files and merge chromosomes
+
+for N in {1..22} X XY ; do cd 2019.10.13.UK_Bio.QC.${N} ; plink2 --bpfile ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI_rel_ImpQuality_sex_soft_MAC10_HWE_merged_nodups --make-bed --out ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI_rel_ImpQuality_sex_soft_MAC10_HWE_NDCNV_QC2 ; cd ../ ; done &&
+
+
+for N in {2..22} X XY; do echo -e "ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI_rel_ImpQuality_sex_soft_MAC10_HWE_NDCNV_QC2.bed ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI_rel_ImpQuality_sex_soft_MAC10_HWE_NDCNV_QC2.bim ukb_imp_chr${N}_v3_1_NDCNV_QC2_FI_rel_ImpQuality_sex_soft_MAC10_HWE_NDCNV_QC2.fam" ; done > mergelist.txt &&
+
+
+
+do plink --bfile ./2019.10.13.UK_Bio.QC.1/ukb_imp_chr1_v3_1_NDCNV_QC2_FI_rel_ImpQuality_sex_soft_MAC10_HWE_NDCNV_QC2 --merge-list mergelist.txt --make-bed --out ukb_imp_merge_v3_1_NDCNV_QC2_FI_rel_ImpQuality_sex_soft_MAC10_HWE_NDCNV_QC2 done &&
+
+
+#21144201 variants included 
+
+#Re-do HWE to add phenotypes 
+
+cd 2019.10.13.UK_Bio.QC.merge/ &&
+
+do plink --bfile ukb_imp_merge_v3_1_NDCNV_QC2_FI_rel_ImpQuality_sex_soft_MAC10_HWE_NDCNV_QC2 --pheno NDCNVcarrier_status_plushead_FI_head.txt --pheno-name Carrier --hardy --make-bed --out ukb_imp_merge_v3_1_NDCNV_QC2_FI_rel_final done
+
+
+#END
