@@ -1,0 +1,31 @@
+#All analyses conducted on the UKB-DNAnexus RAP 
+
+#Normalise multi-allelic variants 
+
+for N in {1..22} X Y; do for FILE in $( dx ls "project:/folder/ukb_c${N}_b*_v1.FI_subset.vcf.gz"); do dx run swiss-army-knife -icmd="bcftools  norm -f '/mnt/project/GRCh38_full_analysis_set_plus_decoy_hla.fa' -m -any -Oz -o ${FILE%.vcf.gz}.norm.vcf.gz '/mnt/project/folder/${FILE}' " --destination="project:/folder/" --instance-type mem2_ssd2_v2_x8 -y --brief -imount_inputs=FALSE -y; done ; done
+
+#Change genotype to missing for DP <10 and GQ <20
+
+for N in {1..22} X Y; do for FILE in $( dx ls "project:/folder/ukb_c${N}_b*_v1.FI_subset.norm.vcf.gz"); do dx run swiss-army-knife -icmd="bcftools +setGT '/mnt/project/folder/${FILE}' -- -t 'q' -n '.' -i 'FMT/DP<10 && FMT/GQ<20' | gzip -c > ${FILE%.vcf.gz}.QC1.vcf.gz; bcftools view -i 'F_PASS(FMT/DP>=10 & FMT/GT!=\"mis\")> 0.9' ${FILE%.vcf.gz}.QC1.vcf.gz --threads 4 -Oz -o ${FILE%.vcf.gz}.QC2.vcf.gz" --destination="project:/folder/" --instance-type mem2_ssd2_v2_x4 -y --brief -imount_inputs=FALSE -y; done ; done
+
+#Allelic balance filter for heterozygous genotypes with AB <20
+
+for N in {1..22} X Y; do for FILE in $( dx ls "project:/folder/ukb_c${N}_b*_v1.FI_subset.norm.QC2.vcf.gz"); do dx run swiss-army-knife -icmd="java -jar $HOME/picard.jar FilterVcf I='/mnt/project/folder/${FILE}' O=${FILE%.norm.QC2.vcf.gz}.QC3.vcf.gz MIN_AB=0.2 CREATE_INDEX=false" --destination="project:/folder/" --instance-type mem2_ssd2_v2_x4 -y --brief -imount_inputs=FALSE -y; done ; done
+
+#Subset by gene region
+
+for N in {1..22} X Y; do for FILE in $( dx ls "project:/folder/ukb_c${N}_b*_v1.FI_subset.QC3.vcf.gz"); do dx run swiss-army-knife -icmd="bcftools view -R /mnt/project/combined_gene_exon_list.bed '/mnt/project/folder/${FILE}' --threads 4 -O z -o ${FILE%.vcf.gz}.varset.vcf.gz" --destination="project:/folder/" --instance-type mem2_ssd2_v2_x4 --brief -imount_inputs=FALSE -y; done ; done
+
+#Tabix files
+
+for N in {1..22} X Y; do for FILE in $( dx ls "project:/folder/ukb23157_c${N}_b*_v1.FI_subset.QC3.varset.vcf.gz"); do dx run swiss-army-knife -icmd="gunzip '/mnt/project/folder/${FILE}' | bgzip -f -k -c > ${FILE%.vcf.gz}.varset.vcf.gz; tabix -p vcf ${FILE%.vcf.gz}.varset.vcf.gz" --destination="project:/folder/" --instance-type mem1_ssd2_v2_x8 --brief -imount_inputs=FALSE -y; done ; done
+
+#Merge
+
+dx ls "project:/folder/ukb_c*_b*_v1.FI_subset.QC3.no_GT_varset.vcf.gz" > varset_subset_merge_list.txt
+
+awk '{print "/mnt/project/FI_subset_VCFs_no_GT/"$1}' varset_subset_merge_list.txt | sort -n -  > varset_subset_merge_list.sorted.txt
+
+dx upload varset_subset_merge_list.sorted.txt
+
+dx run swiss-army-knife -icmd="bcftools concat -f /mnt/project/varset_subset_merge_list.sorted.txt --threads 30 -O z -o ukb23157_v1.merged.varset_FI_subset.vcf.gz" --destination="project:/folder/" --instance-type mem3_ssd2_v2_x64 --brief -imount_inputs=FALSE -y
