@@ -1,0 +1,23 @@
+#Load linear regression file 
+
+library(data.table)
+data <- fread("Linear_regression_file.txt",fill = T)
+
+#Linear regression formula
+
+Carrier_Log <- data[which(data$Carrier_Status == "Carrier"),]
+
+Linear_carrier <- glm(FI_Score ~ ASD_PGS + Age + Sex + Employment_Status + Ed_Attainment + TDI_score + Batch + Assessment_Centre + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20, data = Carrier_Log, family = gaussian)
+
+summary(Linear_carrier)
+
+Linear_carrier <- glm(FI_Score ~ Cog_PGS + Age + Sex + Employment_Status + Ed_Attainment + TDI_score + Batch + Assessment_Centre + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20, data = Carrier_Log, family = gaussian)
+
+summary(Linear_carrier)
+
+Linear_carrier <- glm(FI_Score ~ EA_PGS + Age + Sex + Employment_Status + Ed_Attainment + TDI_score + Batch + Assessment_Centre + PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 + PC20, data = Carrier_Log, family = gaussian)
+
+summary(Linear_carrier)
+
+
+#repeat step for deletion, duplication, 15q11.2 del., and 16p13.11 dup. carriers and non-cariers. Also, run step for ND-CNV, deletion and duplication carriers excluding 15q11.2 del. and 16p13.11 dup.
