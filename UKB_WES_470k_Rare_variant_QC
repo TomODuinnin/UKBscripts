@@ -18,7 +18,7 @@ for N in {1..22} X Y; do for FILE in $( dx ls "project:/folder/ukb_c${N}_b*_v1.F
 
 #Tabix files
 
-for N in {1..22} X Y; do for FILE in $( dx ls "project:/folder/ukb23157_c${N}_b*_v1.FI_subset.QC3.varset.vcf.gz"); do dx run swiss-army-knife -icmd="gunzip '/mnt/project/folder/${FILE}' | bgzip -f -k -c > ${FILE%.vcf.gz}.varset.vcf.gz; tabix -p vcf ${FILE%.vcf.gz}.varset.vcf.gz" --destination="project:/folder/" --instance-type mem1_ssd2_v2_x8 --brief -imount_inputs=FALSE -y; done ; done
+for N in {1..22} X Y; do for FILE in $( dx ls "project:/folder/ukb_c${N}_b*_v1.FI_subset.QC3.varset.vcf.gz"); do dx run swiss-army-knife -icmd="gunzip '/mnt/project/folder/${FILE}' | bgzip -f -k -c > ${FILE%.vcf.gz}.varset.vcf.gz; tabix -p vcf ${FILE%.vcf.gz}.varset.vcf.gz" --destination="project:/folder/" --instance-type mem1_ssd2_v2_x8 --brief -imount_inputs=FALSE -y; done ; done
 
 #Merge
 
@@ -28,4 +28,4 @@ awk '{print "/mnt/project/FI_subset_VCFs_no_GT/"$1}' varset_subset_merge_list.tx
 
 dx upload varset_subset_merge_list.sorted.txt
 
-dx run swiss-army-knife -icmd="bcftools concat -f /mnt/project/varset_subset_merge_list.sorted.txt --threads 30 -O z -o ukb23157_v1.merged.varset_FI_subset.vcf.gz" --destination="project:/folder/" --instance-type mem3_ssd2_v2_x64 --brief -imount_inputs=FALSE -y
+dx run swiss-army-knife -icmd="bcftools concat -f /mnt/project/varset_subset_merge_list.sorted.txt --threads 30 -O z -o ukb_v1.merged.varset_FI_subset.vcf.gz" --destination="project:/folder/" --instance-type mem3_ssd2_v2_x64 --brief -imount_inputs=FALSE -y
